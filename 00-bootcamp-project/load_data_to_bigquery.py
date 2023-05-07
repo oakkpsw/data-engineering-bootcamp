@@ -3,7 +3,6 @@
 import json
 import os
 from datetime import datetime
-
 import pandas as pd
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -18,81 +17,58 @@ client = bigquery.Client(
     credentials=credentials,
 )
 
-#users  use pandas 
-# job_config = bigquery.LoadJobConfig(
-#     write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
-#     schema=[
-#         bigquery.SchemaField("user_id", bigquery.SqlTypeNames.STRING),
-#         bigquery.SchemaField("first_name", bigquery.SqlTypeNames.STRING),
-#         bigquery.SchemaField("last_name", bigquery.SqlTypeNames.STRING),
-#         bigquery.SchemaField("email", bigquery.SqlTypeNames.STRING),
-#         bigquery.SchemaField("phone_number", bigquery.SqlTypeNames.STRING),
-#         bigquery.SchemaField("created_at", bigquery.SqlTypeNames.TIMESTAMP),
-#         bigquery.SchemaField("updated_at", bigquery.SqlTypeNames.TIMESTAMP),
-#         bigquery.SchemaField("address_id", bigquery.SqlTypeNames.STRING),
-#     ],
-#     time_partitioning=bigquery.TimePartitioning(
-#         type_=bigquery.TimePartitioningType.DAY,
-#         field="created_at",
-#     ),
-#     clustering_fields=["first_name", "last_name"],
-# )
-# folder_name = "data"
-# file_path = f"{folder_name}/users.csv"
-# df = pd.read_csv(file_path, parse_dates=["created_at", "updated_at"])
-# df.info()
-
-# table_id = f"{project_id}.deb_bootcamp.users"
-# job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-# job.result()
-
-# table = client.get_table(table_id)
-# print(f"Loaded {table.num_rows} rows and {len(table.schema)} columns to {table_id}")
 
 # load direct from csv
-
-# no partition
-
-
-
-
-
-
-def upload(files,folder_name):
+def load_data(files):
     for file in files:
-        file_path = f"{folder_name}/{file}.csv"
         # partitioned table
-        
+        clustering_fields_setting = None
         if file in ["events","orders","users"]:
-            time_partition_setting=bigquery.TimePartitioning(
-                    type_=bigquery.TimePartitioningType.DAY,
-                    field="created_at",
-                )
             if file == "users":
                 clustering_fields_setting=["first_name", "last_name"]
+                dt = "2020-10-23"
             elif file == "events":
-                clustering_fields_setting=["user"]
+                dt = "2021-02-10"
             elif file == "orders":
-                clustering_fields_setting=["user"]
+                dt = "2021-02-10"
+            load_data_with_partitioned(file,dt,clustering_fields_setting)
         else:
-            time_partition_setting= None
-            clustering_fields_setting = None
-        
+            load_data_without_partitioned(file)
+
+
+def load_data_with_partitioned(file,dt,clustering_fields_setting):
+    file_path = f"data/{file}.csv" 
+    with open(file_path, "rb") as f:
         job_config = bigquery.LoadJobConfig(
             write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
             autodetect=True,
-            time_partitioning=time_partition_setting,
+            time_partitioning=bigquery.TimePartitioning(
+                        type_=bigquery.TimePartitioningType.DAY,
+                        field="created_at",
+                    ),
             clustering_fields=clustering_fields_setting,
         )
-        with open(file_path, "rb") as f:
-            table_id = f"{project_id}.deb_bootcamp.{file}"
-            job = client.load_table_from_file(f, table_id, job_config=job_config)
-            job.result()
+        partition = dt.replace("-", "")
+        table_id = f"{project_id}.deb_bootcamp.{file}${partition}"
+        job = client.load_table_from_file(f, table_id, job_config=job_config)
+        job.result()
+        table = client.get_table(table_id)
+        print(f"Loaded {table.num_rows} rows and {len(table.schema)} columns to {table_id}")
 
+def load_data_without_partitioned(file):
+    file_path = f"data/{file}.csv" 
+    with open(file_path, "rb") as f:
+        job_config = bigquery.LoadJobConfig(
+            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+            autodetect=True,
+        )
+        table_id = f"{project_id}.deb_bootcamp.{file}"
+        job = client.load_table_from_file(f, table_id, job_config=job_config)
+        job.result()
         table = client.get_table(table_id)
         print(f"Loaded {table.num_rows} rows and {len(table.schema)} columns to {table_id}")
 
 if __name__ == "__main__":
     file_name = ["addresses","events","order_items","orders","products","promos","users"]
-    folder_name = "data"
-    upload(file_name,folder_name)
+    # file_name = ["events"]
+    load_data(file_name)
