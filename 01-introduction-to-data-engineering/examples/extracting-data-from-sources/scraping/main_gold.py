@@ -21,13 +21,19 @@ class MySpider(scrapy.Spider):
         rows = table.css("tr")
         # rows = table.xpath("//tr")
         # print(rows)
-
+        data = []
         for row in rows:
-            print(row.css("td::text").extract())
+            data.append(row.css("td::text").extract())
             # print(row.xpath("td//text()").extract())
-
-        # Write to CSV
-        # YOUR CODE HERE
+    
+        print (data[0])
+        with open(f"price.csv", "w") as f:
+            # Write to CSV
+            # YOUR CODE HERE
+            for each in data:
+                writer = csv.writer(f)
+                writer.writerow(each)
+            
 
 
 if __name__ == "__main__":

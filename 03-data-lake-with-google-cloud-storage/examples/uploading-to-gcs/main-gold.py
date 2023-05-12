@@ -6,6 +6,12 @@ from google.api_core import exceptions
 from google.cloud import storage
 from google.oauth2 import service_account
 
+import csv
+
+import scrapy
+from scrapy.crawler import CrawlerProcess
+
+URL = "https://ทองคําราคา.com/"
 
 def upload_blob(bucket_name, source_file_name, destination_blob_name):
     """Uploads a file to the bucket."""
@@ -50,9 +56,45 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
     )
 
 
+class MySpider(scrapy.Spider):
+    name = "gold_price_spider"
+    start_urls = [URL,]
+
+    def parse(self, response):
+        header = response.css("#divDaily h3::text").get().strip()
+        print(header)
+
+        table = response.css("#divDaily .pdtable")
+        # print(table)
+        date_table = response.css("#wrapper .pdtable tbody tr").extract()
+        # date = data_table[0]
+        # print(date)
+        # return true
+        rows = table.css("tr")
+        # rows = table.xpath("//tr")
+        # print(rows)
+        data = []
+        for row in rows:
+            data.append(row.css("td::text").extract())
+            # print(row.xpath("td//text()").extract())
+        file_name = "price.csv"
+        #partition by data
+        folder_name = "2023-05-12" 
+        # bucket_name = "oak-100028"
+        with open(f"{file_name}", "w") as f:
+            # Write to CSV
+            # YOUR CODE HERE
+            for each in data:
+                writer = csv.writer(f)
+                writer.writerow(each)
+        print (sys.argv[1])
+        upload_blob(
+            bucket_name=sys.argv[1],
+            source_file_name=file_name,
+            destination_blob_name=f"{folder_name}/{file_name}",
+        )
+
 if __name__ == "__main__":
-    upload_blob(
-        bucket_name=sys.argv[1],
-        source_file_name=sys.argv[2],
-        destination_blob_name=sys.argv[3],
-    )
+    process = CrawlerProcess()
+    process.crawl(MySpider)
+    process.start()
