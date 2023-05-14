@@ -1,23 +1,38 @@
 import csv
-
+import requests
+import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.models import Variable
+from google.cloud import bigquery, storage
+from google.oauth2 import service_account
+from airflow import models
 
-import requests
 
+BUSINESS_DOMAIN = "greenery"
+LOCATION = "asia-southeast1"
+PROJECT_ID = "dataengineerbootcamp"
+DAGS_FOLDER = "/opt/airflow/dags"
+DATA = "events"
+BUCKET_NAME = "deb-bootcamp-100028"
 
 # Import modules regarding GCP service account, BigQuery, and GCS 
 # Your code here
 
+# variable from airflow 
+host = models.Variable.get('api_config_host') 
+port = models.Variable.get('api_config_port') 
+api_url = f"http://{host}:{port}"
 
+keyfile_gcs_name = models.Variable.get('gcs_key')
+keyfile_bcq_name = models.Variable.get('bcq_key')
 def _extract_data(ds):
-    url = f"http://34.87.139.82:8000/events/?created_at={ds}"
+    url = f"{api_url}/events/?created_at={ds}"
+    print(url)
     response = requests.get(url)
     data = response.json()
-
-    with open(f"/opt/airflow/dags/events-{ds}.csv", "w") as f:
+    with open(f"{DAGS_FOLDER}/events-{ds}.csv", "w") as f:
         writer = csv.writer(f)
         header = [
             "event_id",
@@ -45,31 +60,68 @@ def _extract_data(ds):
             writer.writerow(data)
 
 
-def _load_data_to_gcs():
+def _load_data_to_gcs(ds):
     # Your code below
-    # api_config_host = "{{ var.value.api_config_host }}"
-    # print("xx")
-    # print(api_config_host)
-    keyfile_gcs = ""
-    # keyfile_gcs = "dataengineerbootcamp-f3228d1da17f-gcs.json"
-    service_account_info_gcs = json.load(open(keyfile_gcs))
+    #settings
+    #bcq
+    #gcs
+    # keyfile_gcs_name = "{{ var.value.gcs_key }}"
+    pass
+    service_account_info_gcs = json.load(open(f"{DAGS_FOLDER}/{keyfile_gcs_name}"))
     credentials_gcs = service_account.Credentials.from_service_account_info(service_account_info_gcs)
-    pass
+    storage_client = storage.Client(
+        project=PROJECT_ID,
+        credentials=credentials_gcs,
+    )
+    bucket = storage_client.bucket(BUCKET_NAME)
+    file_path = f"{DAGS_FOLDER}/{DATA}-{ds}.csv"
+    destination_blob_name = f"{BUSINESS_DOMAIN}/{DATA}/{ds}/{DATA}.csv"
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(file_path)
+    
 
 
-def _load_data_from_gcs_to_bigquery():
-    # Your code below
+def _load_data_from_gcs_to_bigquery(ds):
     pass
+    service_account_info_bcq = json.load(open(f"{DAGS_FOLDER}/{keyfile_bcq_name}"))
+    credentials_bcq = service_account.Credentials.from_service_account_info(service_account_info_bcq)
+    bigquery_client = bigquery.Client(
+        project=PROJECT_ID,
+        credentials=credentials_bcq,
+        location=LOCATION,
+    )
+    partition = ds.replace("-", "")
+    table_id = f"{PROJECT_ID}.deb_bootcamp.{DATA}${partition}"
+    job_config = bigquery.LoadJobConfig(
+        skip_leading_rows=1,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        autodetect=True,
+        time_partitioning=bigquery.TimePartitioning(
+                    type_=bigquery.TimePartitioningType.DAY,
+                    field="created_at",
+                ),
+    )
+    destination_blob_name = f"{BUSINESS_DOMAIN}/{DATA}/{ds}/{DATA}.csv"
+    job = bigquery_client.load_table_from_uri(
+        f"gs://{BUCKET_NAME}/{destination_blob_name}",
+        table_id,
+        job_config=job_config,
+        location=LOCATION,
+    )
+    job.result()
+    table = bigquery_client.get_table(table_id)
+    print(f"Loaded {table.num_rows} rows and {len(table.schema)} columns to {table_id}")
+    
 
 
 default_args = {
     "owner": "airflow",
-        "start_date": timezone.datetime(2023, 5, 1),  # Set an appropriate start date here
+    "start_date": timezone.datetime(2021, 2, 9),  # Set an appropriate start date here
 }
 with DAG(
     dag_id="greenery_events_data_pipeline",  # Replace xxx with the data name
     default_args=default_args,
-    schedule=None,  # Set your schedule here
+    schedule="@daily",  # Set your schedule here
     catchup=False,
     tags=["DEB", "2023", "greenery"],
 ):
@@ -84,12 +136,14 @@ with DAG(
     load_data_to_gcs = PythonOperator(
         task_id="load_data_to_gcs",
         python_callable=_load_data_to_gcs,
+        op_kwargs={"ds": "{{ ds }}"},
     )
 
     # Load data from GCS to BigQuery
     load_data_from_gcs_to_bigquery = PythonOperator(
         task_id="load_data_from_gcs_to_bigquery",
         python_callable=_load_data_from_gcs_to_bigquery,
+        op_kwargs={"ds": "{{ ds }}"},
     )
 
     # Task dependencies
