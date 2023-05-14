@@ -11,11 +11,7 @@ location = "asia-southeast1"
 project_id = "dataengineerbootcamp"
 
 #settings
-#gcs
-keyfile_gcs = os.environ.get("KEYFILE_PATH_GCS")
-# keyfile_gcs = "dataengineerbootcamp-f3228d1da17f-gcs.json"
-service_account_info_gcs = json.load(open(keyfile_gcs))
-credentials_gcs = service_account.Credentials.from_service_account_info(service_account_info_gcs)
+x
 #bcq
 keyfile_bcq = os.environ.get("KEYFILE_PATH_BCQ")
 service_account_info_bcq = json.load(open(keyfile_bcq))
