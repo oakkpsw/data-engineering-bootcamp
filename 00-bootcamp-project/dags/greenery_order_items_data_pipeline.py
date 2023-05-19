@@ -16,7 +16,7 @@ BUSINESS_DOMAIN = "greenery"
 LOCATION = "asia-southeast1"
 PROJECT_ID = "dataengineerbootcamp"
 DAGS_FOLDER = "/opt/airflow/dags"
-DATA = "addresses"
+DATA = "order-items"
 BUCKET_NAME = "deb-bootcamp-100028"
 
 # Import modules regarding GCP service account, BigQuery, and GCS 
@@ -29,28 +29,24 @@ api_url = f"http://{host}:{port}"
 
 keyfile_gcs_name = models.Variable.get('gcs_key')
 keyfile_bcq_name = models.Variable.get('bcq_key')
-def _extract_data(ds):
+def _extract_data():
     url = f"{api_url}/{DATA}/"
     response = requests.get(url)
     data = response.json()
     with open(f"{DAGS_FOLDER}/{DATA}.csv", "w") as f:
         writer = csv.writer(f)
         header = [
-            "address_id",
-            "address",
-            "zipcode",
-            "state",
-            "country",
+            "order",
+            "quantity",
+            "product",
         ]
         writer.writerow(header)
         for each in data:
             # print(each["event_id"], each["event_type"])
             data = [
-                each["address_id"],
-                each["address"],
-                each["zipcode"],
-                each["state"],
-                each["country"],
+                each["order"],
+                each["quantity"],
+                each["product"],
             ]
             writer.writerow(data)
 
@@ -79,7 +75,7 @@ def _load_data_from_gcs_to_bigquery():
         location=LOCATION,
     )
     
-    table_id = f"{PROJECT_ID}.deb_bootcamp.{DATA}"
+    table_id = f"{PROJECT_ID}.deb_bootcamp.order_items"
     job_config = bigquery.LoadJobConfig(
         skip_leading_rows=1,
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
@@ -105,12 +101,13 @@ default_args = {
     "start_date": timezone.datetime(2021, 2, 9),  # Set an appropriate start date here
 }
 with DAG(
-    dag_id="greenery_addresses_data_pipeline",  # Replace xxx with the data name
+    dag_id="greenery_order_items_data_pipeline",  # Replace xxx with the data name
     default_args=default_args,
     schedule="@daily",  # Set your schedule here
     catchup=False,
     tags=["DEB", "2023", "greenery"],
 ):
+
     # Extract data from Postgres, API, or SFTP
     extract_data = PythonOperator(
         task_id="extract_data",

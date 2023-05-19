@@ -16,7 +16,7 @@ BUSINESS_DOMAIN = "greenery"
 LOCATION = "asia-southeast1"
 PROJECT_ID = "dataengineerbootcamp"
 DAGS_FOLDER = "/opt/airflow/dags"
-DATA = "addresses"
+DATA = "promos"
 BUCKET_NAME = "deb-bootcamp-100028"
 
 # Import modules regarding GCP service account, BigQuery, and GCS 
@@ -36,21 +36,17 @@ def _extract_data(ds):
     with open(f"{DAGS_FOLDER}/{DATA}.csv", "w") as f:
         writer = csv.writer(f)
         header = [
-            "address_id",
-            "address",
-            "zipcode",
-            "state",
-            "country",
+            "promo_id",
+            "discount",
+            "status",
         ]
         writer.writerow(header)
         for each in data:
             # print(each["event_id"], each["event_type"])
             data = [
-                each["address_id"],
-                each["address"],
-                each["zipcode"],
-                each["state"],
-                each["country"],
+                each["promo_id"],
+                each["discount"],
+                each["status"],
             ]
             writer.writerow(data)
 
@@ -105,7 +101,7 @@ default_args = {
     "start_date": timezone.datetime(2021, 2, 9),  # Set an appropriate start date here
 }
 with DAG(
-    dag_id="greenery_addresses_data_pipeline",  # Replace xxx with the data name
+    dag_id="greenery_promos_data_pipeline",  # Replace xxx with the data name
     default_args=default_args,
     schedule="@daily",  # Set your schedule here
     catchup=False,

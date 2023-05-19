@@ -4,10 +4,10 @@ import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
-from airflow.models import Variable
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 from airflow import models
+import logging
 
 
 BUSINESS_DOMAIN = "greenery"
@@ -28,8 +28,9 @@ api_url = f"http://{host}:{port}"
 keyfile_gcs_name = models.Variable.get('gcs_key')
 keyfile_bcq_name = models.Variable.get('bcq_key')
 def _extract_data(ds):
-    url = f"{api_url}/events/?created_at={ds}"
-    print(url)
+    url = f"{api_url}/{DATA}/?created_at={ds}"
+    # print(url)
+    # logging.info(f"URL: {url}")  # Log the URL
     response = requests.get(url)
     data = response.json()
     with open(f"{DAGS_FOLDER}/events-{ds}.csv", "w") as f:
@@ -66,7 +67,6 @@ def _load_data_to_gcs(ds):
     #bcq
     #gcs
     # keyfile_gcs_name = "{{ var.value.gcs_key }}"
-    pass
     service_account_info_gcs = json.load(open(f"{DAGS_FOLDER}/{keyfile_gcs_name}"))
     credentials_gcs = service_account.Credentials.from_service_account_info(service_account_info_gcs)
     storage_client = storage.Client(
@@ -82,7 +82,7 @@ def _load_data_to_gcs(ds):
 
 
 def _load_data_from_gcs_to_bigquery(ds):
-    pass
+
     service_account_info_bcq = json.load(open(f"{DAGS_FOLDER}/{keyfile_bcq_name}"))
     credentials_bcq = service_account.Credentials.from_service_account_info(service_account_info_bcq)
     bigquery_client = bigquery.Client(
