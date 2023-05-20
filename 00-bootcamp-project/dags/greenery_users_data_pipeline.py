@@ -2,11 +2,13 @@ import csv
 import requests
 import json
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator , BranchPythonOperator
 from airflow.utils import timezone
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 from airflow import models
+from airflow.operators.dummy import DummyOperator
+
 import logging
 
 
@@ -42,32 +44,38 @@ def _extract_data(ds):
     #     "created_at": "2020-10-23T20:21:57Z",
     #     "updated_at": "2021-01-30T22:49:31Z",
     #     "address": "7a4821e6-4e7a-4894-bb35-70ffcf0c3aa8"
-    with open(f"{DAGS_FOLDER}/{DATA}-{ds}.csv", "w") as f:
-        writer = csv.writer(f)
-        header = [
-            "user_id",
-            "first_name",
-            "last_name",
-            "email",
-            "phone_number",
-            "created_at",
-            "updated_at",
-            "address",
-        ]
-        writer.writerow(header)
-        for each in data:
-            # print(each["event_id"], each["event_type"])
-            data = [
-                each["user_id"],
-                each["first_name"],
-                each["last_name"],
-                each["email"],
-                each["phone_number"],
-                each["created_at"],
-                each["updated_at"],
-                each["address"]
+   
+    if data:
+        with open(f"{DAGS_FOLDER}/{DATA}-{ds}.csv", "w") as f:
+            writer = csv.writer(f)
+            header = [
+                "user_id",
+                "first_name",
+                "last_name",
+                "email",
+                "phone_number",
+                "created_at",
+                "updated_at",
+                "address",
             ]
-            writer.writerow(data)
+            writer.writerow(header)
+            for each in data:
+                # print(each["event_id"], each["event_type"])
+                data = [
+                    each["user_id"],
+                    each["first_name"],
+                    each["last_name"],
+                    each["email"],
+                    each["phone_number"],
+                    each["created_at"],
+                    each["updated_at"],
+                    each["address"]
+                ]
+                writer.writerow(data)# Return a value indicating data is available
+        return 'load_data_to_gcs'
+    else:
+        return 'no_data_task'  # Return a value indicating no data
+    
 
 
 def _load_data_to_gcs(ds):
@@ -76,7 +84,6 @@ def _load_data_to_gcs(ds):
     #bcq
     #gcs
     # keyfile_gcs_name = "{{ var.value.gcs_key }}"
-    x
     service_account_info_gcs = json.load(open(f"{DAGS_FOLDER}/{keyfile_gcs_name}"))
     credentials_gcs = service_account.Credentials.from_service_account_info(service_account_info_gcs)
     storage_client = storage.Client(
@@ -137,7 +144,7 @@ with DAG(
     tags=["DEB", "2023", "greenery"],
 ):
     # Extract data from Postgres, API, or SFTP
-    extract_data = PythonOperator(
+    extract_data = BranchPythonOperator(
         task_id="extract_data",
         python_callable=_extract_data,
         op_kwargs={"ds": "{{ ds }}"},
@@ -156,11 +163,17 @@ with DAG(
         python_callable=_load_data_from_gcs_to_bigquery,
         op_kwargs={"ds": "{{ ds }}"},
     )
+    
+    no_data_task = DummyOperator(
+        task_id='no_data_task',
+    
+    )
 
     # Task dependencies
     extract_data >> load_data_to_gcs >> load_data_from_gcs_to_bigquery
+    extract_data >> no_data_task
 
-
+#airflow dags backfill -s 2020-01-05 -e 2020-12-26 greenery_users_data_pipeline --reset-dagruns
 #airflow dags backfill -s 2020-01-05 -e 2020-01-31 greenery_users_data_pipeline --reset-dagruns
 #airflow dags backfill -s 2020-02-01 -e 2020-02-28 greenery_users_data_pipeline --reset-dagruns
 #airflow dags backfill -s 2020-03-01 -e 2020-03-31 greenery_users_data_pipeline --reset-dagruns
