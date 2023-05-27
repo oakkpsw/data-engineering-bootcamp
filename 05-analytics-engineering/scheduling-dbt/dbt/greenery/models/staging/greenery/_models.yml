@@ -29,14 +29,14 @@ models:
         description: User ID
         tests:
           - relationships:
-              to: ref('users')
-              field: user_id
+              to: ref('stg_greenery__users')
+              field: user_guid
   - name: stg_greenery__orders
     description: Greenery orders
     columns:
       - name: order_guid
         description: Order GUID
-  - name: stg_greenery_addresses
+  - name: stg_greenery__addresses
     description: Greenery addresses
     columns:
       - name: address_guid

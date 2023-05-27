@@ -1,14 +1,8 @@
 with
 
-orders as (
+int_orders_addresses__joined as (
 
-		select * from {{ ref('stg_greenery__orders') }}
-
-)
-
-, addresses as (
-
-    select * from {{ ref('stg_greenery__addresses') }}
+		select * from {{ ref('int_orders_addresses__joined') }}
 
 )
 
@@ -18,9 +12,7 @@ orders as (
         state
         , count(o.order_guid) as number_of_orders
 
-    from orders as o
-    join addresses as a
-        on o.address_guid = a.address_guid
+    from int_orders_addresses__joined
     group by state
     order by 2 desc
     limit 1
