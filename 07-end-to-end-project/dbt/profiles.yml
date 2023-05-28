@@ -1,0 +1,22 @@
+networkrail:
+  target: dbt_patsawut
+
+  outputs:
+    dbt_patsawut:
+      type: bigquery
+      method: service-account
+      project: dataengineerbootcamp
+      dataset: dbt_patsawut
+      threads: 10
+      keyfile: /Users/patsawut/Documents/data en bootcamp/de_bootcamp_project/data-engineering-bootcamp/07-end-to-end-project/dags/dataengineerbootcamp-b7971e4b751e_bcq_gcs.json
+      location: asia-southeast1
+
+    prod:
+      type: bigquery
+      method: service-account
+      project: dataengineerbootcamp
+      dataset: networkrail
+      threads: 1
+      keyfile: /Users/patsawut/Documents/data en bootcamp/de_bootcamp_project/data-engineering-bootcamp/07-end-to-end-project/dags/dataengineerbootcamp-b7971e4b751e_bcq_gcs.json
+      location: asia-southeast1
+

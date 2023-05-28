@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: stg_networkrail__movements
+    description: Staging model for Network Rail movement data
+    columns:
+      - name: event_type
+        description: Event type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ARRIVAL', 'DEPARTURE']
+          - dbt_expectations.expect_column_to_exist
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: string
+      - name: actual_timestamp_utc
+        description: Actual timestamp in UTC
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_to_exist
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: timestamp
+      # - name: planned_timestamp_utc
+      #   description: Plan timestamp in UTC
+      #   tests:
+      #     - not_null
+      #     - dbt_expectations.expect_column_to_exist
+      #     - dbt_expectations.expect_column_values_to_be_of_type:
+      #         column_type: timestamp
+      # - name: timetable_variation
+      #   description: The number of minutes variation from the scheduled time at this location. Off-route reports will contain "0"
+      #   tests:
+      #     - not_null
+      #     - dbt_expectations.expect_column_to_exist
+      #     - dbt_expectations.expect_column_values_to_be_of_type:
+      #         column_type: integer
+      # - name: delay_monitoring_point
+      #   description: Set to "true" if this is a delay monitoring point, "false" if it is not. Off-route reports will contain "false"
+      #   tests:
+      #     - not_null
+      #     - dbt_expectations.expect_column_to_exist
+      #     - dbt_expectations.expect_column_values_to_be_of_type:
+      #         column_type: boolean
+      - name: event_source
+        description: Whether the event source was "AUTOMATIC" from SMART, or "MANUAL" from TOPS or TRUST SDR
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['AUTOMATIC', 'MANUAL']
+          - dbt_expectations.expect_column_to_exist
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: string
+  - name: stg_networkrail__operating_companies

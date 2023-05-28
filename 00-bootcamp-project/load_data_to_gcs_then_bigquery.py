@@ -11,7 +11,6 @@ location = "asia-southeast1"
 project_id = "dataengineerbootcamp"
 
 #settings
-x
 #bcq
 keyfile_bcq = os.environ.get("KEYFILE_PATH_BCQ")
 service_account_info_bcq = json.load(open(keyfile_bcq))
